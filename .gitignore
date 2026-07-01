@@ -1,0 +1,183 @@
+# ========================================
+# ENVIRONMENT & SECRETS
+# ========================================
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ========================================
+# PYTHON
+# ========================================
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# ========================================
+# NODE / FRONTEND
+# ========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Frontend build outputs
+frontend/dist/
+frontend/build/
+dist/
+build/
+
+# Frontend cache
+.vite/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# ========================================
+# DATASETS & LARGE FILES
+# ========================================
+# Dataset directories
+backend/datasets/
+backend/data/spacenet/
+backend/data/deepglobe/
+backend/data/osm_*/
+datasets/
+data/raw/
+data/processed/
+
+# Large model files (use HuggingFace instead)
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.pb
+*.onnx
+models/pretrained/
+*.weights
+
+# ========================================
+# RESULTS & OUTPUTS
+# ========================================
+backend/results/
+backend/temp/
+backend/cache/
+results/
+temp/
+cache/
+outputs/
+logs/
+*.log
+
+# Generated files
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.geojson
+*.graphml
+*.pkl
+*.pickle
+
+# Except example/demo files
+!backend/demo_data/**
+!frontend/public/**
+
+# ========================================
+# IDE & EDITORS
+# ========================================
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# ========================================
+# OPERATING SYSTEM
+# ========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+.Trash-*
+
+# ========================================
+# DOCKER
+# ========================================
+docker-compose.override.yml
+.dockerignore
+
+# ========================================
+# MISC
+# ========================================
+*.bak
+*.tmp
+*.temp
+.env.backup
