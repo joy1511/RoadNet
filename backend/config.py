@@ -14,6 +14,9 @@ load_dotenv()
 _torch_available = False
 try:
     import torch
+    torch.set_num_threads(1)  # FORCE single threading to save massive amounts of RAM
+    import cv2
+    cv2.setNumThreads(1)      # FORCE single threading for OpenCV
     _torch_available = True
 except ImportError:
     pass
@@ -113,7 +116,7 @@ class Config:
     # ========================================
     # DEMO CONFIGURATION
     # ========================================
-    DEMO_CITY = os.getenv('DEMO_CITY', 'Bengaluru, India')
+    DEMO_CITY = os.getenv('DEMO_CITY', 'Indiranagar, Bengaluru, India')
     DEMO_CENTER_LAT = float(os.getenv('DEMO_CENTER_LAT', 12.9716))
     DEMO_CENTER_LON = float(os.getenv('DEMO_CENTER_LON', 77.5946))
     DEMO_RADIUS_KM = float(os.getenv('DEMO_RADIUS_KM', 10))
