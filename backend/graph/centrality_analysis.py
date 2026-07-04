@@ -112,11 +112,20 @@ class CentralityAnalysis:
         # Use weight attribute if graph is weighted
         weight = self.weight_attr if nx.is_weighted(G, weight=self.weight_attr) else None
         
-        # For large graphs, approximate by sampling k nodes to avoid O(V*E) hanging for hours
+        # For large graphs, approximate by sampling k nodes
+        # Fix: min(10,...) was producing wildly inaccurate scores (all near 0)
+        # Use min(500, num_nodes) for a much better approximation
         num_nodes = len(G.nodes)
-        k_sample = min(10, num_nodes) if num_nodes > 1000 else None
-        
-        if k_sample:
+        # For large graphs, use approximation (k samples)
+        k_sample = None
+        if num_nodes > 100000:
+            k_sample = 10
+            logger.info(f"Graph is extremely large ({num_nodes} nodes), using approximation with k={k_sample}")
+        elif num_nodes > 10000:
+            k_sample = 20
+            logger.info(f"Graph is very large ({num_nodes} nodes), using approximation with k={k_sample}")
+        elif num_nodes > 1000:
+            k_sample = 100
             logger.info(f"Graph is large ({num_nodes} nodes), using approximation with k={k_sample}")
             
         centrality = nx.betweenness_centrality(

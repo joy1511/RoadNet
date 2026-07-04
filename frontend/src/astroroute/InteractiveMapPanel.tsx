@@ -113,6 +113,15 @@ export const InteractiveMapPanel: React.FC<InteractiveMapPanelProps> = ({
     };
   }, [graph]);
 
+  // Fix: Sync isFullscreen state when user exits fullscreen via Escape key
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   // Handle map interaction
   const handleNodeClick = useCallback(
     (nodeId: string) => {
@@ -135,6 +144,10 @@ export const InteractiveMapPanel: React.FC<InteractiveMapPanelProps> = ({
       }
     });
     layersRef.current = [];
+
+    // Fix: Build a lookup map from node id → node object (was missing, caused ReferenceError)
+    const nodeMap = new Map<string, (typeof graph.nodes)[0]>();
+    graph.nodes.forEach((n) => nodeMap.set(n.id, n));
 
     const centralityMap = new Map<string, number>();
     const criticalityMap = new Map<string, string>();
@@ -171,14 +184,17 @@ export const InteractiveMapPanel: React.FC<InteractiveMapPanelProps> = ({
       const src = nodeMap.get(srcId);
       const tgt = nodeMap.get(tgtId);
 
+      // Fix: Guard against missing nodes (null-safety)
+      if (!src || !tgt) return;
+
       const getLatLng = (n: any): [number, number] | null => {
         if (n.lat !== undefined && n.lon !== undefined) return [n.lat, n.lon];
         if (n.y !== undefined && n.x !== undefined) return [-n.y, n.x];
         return null;
       };
 
-      const srcPos = src ? getLatLng(src) : null;
-      const tgtPos = tgt ? getLatLng(tgt) : null;
+      const srcPos = getLatLng(src);
+      const tgtPos = getLatLng(tgt);
 
       if (!srcPos || !tgtPos) return;
 
@@ -187,7 +203,6 @@ export const InteractiveMapPanel: React.FC<InteractiveMapPanelProps> = ({
       let color = edge.healed ? '#10b981' : '#334155';
       let weight = edge.healed ? 2 : 1;
       let opacity = 0.7;
-      let zIndexOffset = 0;
 
       // If coloring by criticality, check if source or target is critical
       if (colorByCriticality && centralityResult && !isSpEdge) {
@@ -205,7 +220,6 @@ export const InteractiveMapPanel: React.FC<InteractiveMapPanelProps> = ({
         color = '#a855f7'; // Purple for shortest path
         weight = 4;
         opacity = 1;
-        zIndexOffset = 1000;
       }
 
       const line = L.polyline([srcPos, tgtPos], {
@@ -214,7 +228,6 @@ export const InteractiveMapPanel: React.FC<InteractiveMapPanelProps> = ({
         opacity,
         dashArray: edge.healed ? '5, 5' : undefined,
       });
-      // Add custom Z-index if leaflet supports it, else it will just draw in order
       
       line.addTo(mapRef.current);
 
@@ -296,7 +309,7 @@ export const InteractiveMapPanel: React.FC<InteractiveMapPanelProps> = ({
     } else {
       document.exitFullscreen?.();
     }
-    setIsFullscreen(!isFullscreen);
+    // isFullscreen state is now updated via the 'fullscreenchange' event listener
   };
 
   const totalLength = graph.edges.reduce((sum, e) => sum + e.length, 0);

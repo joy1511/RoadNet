@@ -9,7 +9,7 @@ import { Graph, CentralityResult } from '../types';
 interface SimulationPanelProps {
   graph: Graph;
   centralityResult: CentralityResult;
-  selectedNode: string | null;
+  selectedNode: string | undefined;  // Fix: was 'string | null', parent passes 'string | undefined'
   onSimulate: (nodeIds: string[]) => void;
 }
 

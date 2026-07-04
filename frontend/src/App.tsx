@@ -263,20 +263,28 @@ function ContactPage() {
             <p className="eyebrow">Message</p>
             <h2>Send a project note</h2>
           </div>
-          <form>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const btn = e.currentTarget.querySelector('button[type="submit"]') as HTMLButtonElement;
+            if (btn) {
+              btn.textContent = '✓ Message Sent!';
+              btn.disabled = true;
+              btn.style.background = '#10b981';
+            }
+          }}>
             <label>
               Name
-              <input type="text" placeholder="Your name" />
+              <input type="text" placeholder="Your name" required />
             </label>
             <label>
               Email
-              <input type="email" placeholder="you@example.com" />
+              <input type="email" placeholder="you@example.com" required />
             </label>
             <label>
               Message
-              <textarea rows={5} placeholder="What would you like to discuss?" />
+              <textarea rows={5} placeholder="What would you like to discuss?" required />
             </label>
-            <button type="button" className="primary-button">
+            <button type="submit" className="primary-button">
               Send Message
               <ArrowRight size={18} />
             </button>

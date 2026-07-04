@@ -3,7 +3,6 @@ OpenStreetMap Data Loader - Friend 2
 Load real road networks from OpenStreetMap
 """
 
-import osmnx as ox
 import networkx as nx
 import logging
 from pathlib import Path
@@ -13,9 +12,19 @@ from config import config
 
 logger = logging.getLogger(__name__)
 
-# Configure OSMnx
-ox.settings.use_cache = True
-ox.settings.log_console = False
+# Lazy import of osmnx — backend should start even without it
+try:
+    import osmnx as ox
+    ox.settings.use_cache = True
+    ox.settings.log_console = False
+    _osmnx_available = True
+except ImportError:
+    ox = None
+    _osmnx_available = False
+    logging.getLogger(__name__).warning(
+        "osmnx not installed — OSM data loading endpoints will not work. "
+        "Install with: pip install osmnx"
+    )
 
 
 class OSMLoader:
@@ -46,6 +55,9 @@ class OSMLoader:
         Returns:
             NetworkX MultiDiGraph
         """
+        if not _osmnx_available:
+            raise ImportError("osmnx is not installed. Run: pip install osmnx")
+        
         logger.info(f"Loading OSM data for: {place_name}")
         
         # Check cache
@@ -92,6 +104,9 @@ class OSMLoader:
         Returns:
             NetworkX MultiDiGraph
         """
+        if not _osmnx_available:
+            raise ImportError("osmnx is not installed. Run: pip install osmnx")
+        
         logger.info(f"Loading OSM data around ({lat}, {lon}) with radius {radius}m")
         
         # Check cache

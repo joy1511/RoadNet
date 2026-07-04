@@ -43,7 +43,7 @@ export const NetworkMapPage: React.FC = () => {
               <ArrowLeft size={20} />
             </a>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">An Example</h1>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Network Map</h1>
               <p className="text-sm text-slate-400 mt-1">
                 Interactive Bengaluru Road Network Analysis
               </p>

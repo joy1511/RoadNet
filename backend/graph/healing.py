@@ -73,7 +73,7 @@ class GraphHealer:
     
     def _bridge_components(self, G, components):
         """
-        Bridge disconnected components
+        Bridge disconnected components using a single global KD-Tree
         
         Args:
             G: Graph to modify (in-place)
@@ -87,32 +87,57 @@ class GraphHealer:
         # Convert components to list for indexing
         component_list = [list(comp) for comp in components]
         
-        # Build KD-tree for each component
-        component_trees = []
-        component_nodes = []
-        
-        for comp_nodes in component_list:
-            positions = np.array([G.nodes[n]['pos'] for n in comp_nodes])
-            tree = KDTree(positions)
-            component_trees.append(tree)
-            component_nodes.append(comp_nodes)
-        
-        # Find potential bridges between components
-        potential_bridges = []
-        
-        for i in range(len(component_list)):
-            for j in range(i + 1, len(component_list)):
-                # Find closest pair of nodes between components i and j
-                bridge = self._find_best_bridge(
-                    G,
-                    component_nodes[i],
-                    component_nodes[j],
-                    component_trees[i],
-                    component_trees[j]
-                )
+        # Build a mapping from node_id -> component index
+        node_to_comp_index = {}
+        for idx, comp_nodes in enumerate(component_list):
+            for n in comp_nodes:
+                node_to_comp_index[n] = idx
                 
-                if bridge:
-                    potential_bridges.append(bridge)
+        node_ids = list(G.nodes())
+        
+        # Build a single global KD-Tree
+        from scipy.spatial import cKDTree
+        
+        # Ensure 'pos' exists on all nodes
+        try:
+            positions = np.array([G.nodes[n]['pos'] for n in node_ids])
+        except KeyError:
+            # Fallback to x,y if pos doesn't exist
+            positions = np.array([[G.nodes[n].get('x', 0), G.nodes[n].get('y', 0)] for n in node_ids])
+            
+        if len(positions) == 0:
+            return 0
+            
+        global_tree = cKDTree(positions)
+        
+        # Find all pairs within max_gap_distance
+        pairs = global_tree.query_pairs(self.max_gap_distance)
+        
+        potential_bridges = []
+        for i, j in pairs:
+            node_i = node_ids[i]
+            node_j = node_ids[j]
+            comp_i = node_to_comp_index[node_i]
+            comp_j = node_to_comp_index[node_j]
+            
+            # Only consider bridging nodes in different components
+            if comp_i != comp_j:
+                pos_i = positions[i]
+                pos_j = positions[j]
+                
+                dist = np.linalg.norm(pos_i - pos_j)
+                angle_score = self._compute_angular_score(G, node_i, node_j, pos_i, pos_j)
+                score = dist + angle_score * 10
+                
+                potential_bridges.append({
+                    'comp_i': comp_i,
+                    'comp_j': comp_j,
+                    'node1': node_i,
+                    'node2': node_j,
+                    'distance': dist,
+                    'angle_score': angle_score,
+                    'score': score
+                })
         
         # Sort bridges by quality (distance + angular alignment)
         potential_bridges.sort(key=lambda b: b['score'])
@@ -136,7 +161,7 @@ class GraphHealer:
                     node2,
                     weight=distance,
                     length=distance,
-                    healed=True,  # Mark as healing edge
+                    healed=True,
                     healing_score=bridge['score']
                 )
                 
@@ -148,57 +173,6 @@ class GraphHealer:
                     break
         
         return bridges_added
-    
-    def _find_best_bridge(self, G, nodes_i, nodes_j, tree_i, tree_j):
-        """
-        Find best bridge between two components
-        
-        Args:
-            G: Graph
-            nodes_i, nodes_j: Lists of nodes in each component
-            tree_i, tree_j: KD-trees for each component
-            
-        Returns:
-            Dictionary with bridge info or None
-        """
-        best_bridge = None
-        best_score = float('inf')
-        
-        # For efficiency, only check a subset of nodes
-        sample_size = min(50, len(nodes_i))
-        sampled_nodes_i = np.random.choice(nodes_i, size=sample_size, replace=False)
-        
-        for node_i in sampled_nodes_i:
-            pos_i = np.array(G.nodes[node_i]['pos'])
-            
-            # Find nearest node in component j
-            dist, idx = tree_j.query(pos_i)
-            
-            if dist > self.max_gap_distance:
-                continue
-            
-            node_j = nodes_j[idx]
-            pos_j = np.array(G.nodes[node_j]['pos'])
-            
-            # Compute angular alignment score
-            angle_score = self._compute_angular_score(G, node_i, node_j, pos_i, pos_j)
-            
-            # Combined score (lower is better)
-            score = dist + angle_score * 10  # Weight angle more
-            
-            if score < best_score:
-                best_score = score
-                best_bridge = {
-                    'comp_i': nodes_i[0],  # Use first node as component identifier
-                    'comp_j': nodes_j[0],
-                    'node1': node_i,
-                    'node2': node_j,
-                    'distance': dist,
-                    'angle_score': angle_score,
-                    'score': score
-                }
-        
-        return best_bridge
     
     def _compute_angular_score(self, G, node1, node2, pos1, pos2):
         """

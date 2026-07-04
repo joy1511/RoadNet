@@ -48,17 +48,16 @@ export const MapView: React.FC<MapViewProps> = ({
         
         mapRef.current = map;
 
-        // Mappls tile layer with your API key
-        const mapplsKey = 'scilthgyttnvubzynvvitmdjhhhjqvlwyprj';
+        const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY || '';
         
-        L.tileLayer(`https://apis.mappls.com/advancedmaps/v1/${mapplsKey}/still_map_tiles/{z}/{x}/{y}.png`, {
-          attribution: '© <a href="https://www.mappls.com/">Mappls</a>',
-          maxZoom: 19,
-          minZoom: 4,
+        L.tileLayer(`https://maps.geoapify.com/v1/tile/dark-matter/{z}/{x}/{y}.png?apiKey=${geoapifyKey}`, {
+          attribution: '© <a href="https://www.geoapify.com/">Geoapify</a> | © OpenStreetMap contributors',
+          maxZoom: 20,
+          minZoom: 1,
         }).addTo(map);
 
         setMapReady(true);
-        console.log('Map initialized with Mappls tiles');
+        console.log('Map initialized with Geoapify tiles');
       } catch (err) {
         console.error('Map init error:', err);
         setError('Failed to initialize map');
@@ -199,7 +198,7 @@ export const MapView: React.FC<MapViewProps> = ({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100" style={{ zIndex: 1000 }}>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-gray-700 font-medium">Loading map...</p>
-          <p className="text-xs text-gray-500 mt-2">Initializing Mappls tiles</p>
+          <p className="text-xs text-gray-500 mt-2">Initializing Geoapify tiles</p>
         </div>
       )}
 

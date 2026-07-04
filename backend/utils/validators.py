@@ -46,16 +46,15 @@ def validate_image(image_file):
         max_mb = config.MAX_UPLOAD_SIZE / (1024 * 1024)
         return False, f"File too large. Maximum size: {max_mb}MB"
     
-    # Try to open as image
+    # Try to open as image and validate
     try:
         img = Image.open(image_file)
-        img.verify()  # Verify it's actually an image
-        image_file.seek(0)  # Reset after verify
         
-        # Check image dimensions
-        img = Image.open(image_file)
+        # Load image data to confirm it's a valid image (safer than verify() which consumes the stream)
+        img.load()
+        
         width, height = img.size
-        image_file.seek(0)
+        image_file.seek(0)  # Reset for downstream use
         
         if width < 10 or height < 10:
             return False, "Image too small (minimum 10x10 pixels)"

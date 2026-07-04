@@ -251,8 +251,9 @@ export function useRoadAnalysis(config: AnalysisConfig) {
     async (inputGraph: Graph, source: string, target: string) => {
       setLoading(true);
       setError(null);
+      // Fix: was incorrectly using 'simulating-ablation' step for shortest path
       setProgress({
-        step: 'simulating-ablation', // Reusing progress step for now
+        step: 'complete',
         progress: 90,
         message: 'Calculating shortest path...',
       });
@@ -264,7 +265,7 @@ export function useRoadAnalysis(config: AnalysisConfig) {
         setShortestPathResult(result);
 
         setProgress({
-          step: 'simulating-ablation',
+          step: 'complete',
           progress: 100,
           message: 'Path calculation complete',
         });
@@ -281,6 +282,8 @@ export function useRoadAnalysis(config: AnalysisConfig) {
   );
 
   // Run full analysis pipeline
+  // Fix: Call raw API functions directly to avoid each sub-step calling setLoading(false)
+  // which caused the spinner to flicker off between pipeline steps.
   const runFullAnalysis = useCallback(
     async (file: File) => {
       setLoading(true);
@@ -293,42 +296,46 @@ export function useRoadAnalysis(config: AnalysisConfig) {
 
       try {
         // Step 1: Segmentation
-        setProgress({
-          step: 'segmenting',
-          progress: 20,
-          message: 'Segmenting roads...',
+        setProgress({ step: 'segmenting', progress: 20, message: 'Segmenting roads...' });
+        const maskBlob = await segmentRoad(
+          file,
+          config.segmentation.threshold,
+          config.segmentation.handleOcclusion
+        );
+        const maskPreview = await blobToBase64(maskBlob);
+        setSegmentationResult({
+          maskBlob,
+          maskPreview,
+          stats: { total_pixels: 0, road_pixels: 0, road_percentage: 0 },
         });
-        const maskBlob = await runSegmentation(file);
 
         // Step 2: Graph extraction
-        setProgress({
-          step: 'extracting-graph',
-          progress: 40,
-          message: 'Extracting graph...',
-        });
-        const extractedGraph = await runGraphExtraction(maskBlob);
+        setProgress({ step: 'extracting-graph', progress: 40, message: 'Extracting graph...' });
+        let extractedGraph = await extractGraph(maskBlob, config.graph.simplify);
+
+        setProgress({ step: 'healing-graph', progress: 55, message: 'Healing broken connections...' });
+        extractedGraph = await healGraph(extractedGraph, config.graph.maxGap);
+        setGraph(extractedGraph);
 
         // Step 3: Centrality
-        setProgress({
-          step: 'computing-centrality',
-          progress: 70,
-          message: 'Computing centrality...',
-        });
-        const centralityRes = await runCentralityAnalysis(extractedGraph);
+        setProgress({ step: 'computing-centrality', progress: 70, message: 'Computing centrality...' });
+        const centralityRes = await computeCentrality(
+          extractedGraph,
+          config.centrality.algorithm,
+          config.centrality.topN
+        );
+        setCentralityResult(centralityRes);
 
         // Step 4: Ablation
-        setProgress({
-          step: 'simulating-ablation',
-          progress: 90,
-          message: 'Running ablation simulation...',
-        });
-        await runAblationSimulation(extractedGraph);
+        setProgress({ step: 'simulating-ablation', progress: 90, message: 'Running ablation simulation...' });
+        const ablationRes = await simulateAblation(
+          extractedGraph,
+          undefined,
+          config.ablation.iterations
+        );
+        setAblationResult(ablationRes);
 
-        setProgress({
-          step: 'complete',
-          progress: 100,
-          message: 'Analysis complete!',
-        });
+        setProgress({ step: 'complete', progress: 100, message: 'Analysis complete!' });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Analysis pipeline failed');
         throw err;
@@ -336,7 +343,7 @@ export function useRoadAnalysis(config: AnalysisConfig) {
         setLoading(false);
       }
     },
-    [runSegmentation, runGraphExtraction, runCentralityAnalysis, runAblationSimulation]
+    [config]
   );
 
   // Load Bengaluru demo

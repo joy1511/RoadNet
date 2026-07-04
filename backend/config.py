@@ -88,10 +88,6 @@ class Config:
     RESULTS_DIR = BASE_DIR / os.getenv('RESULTS_DIR', 'results')
     TEMP_DIR = BASE_DIR / os.getenv('TEMP_DIR', 'temp')
     
-    # Create directories if they don't exist
-    for dir_path in [DATA_DIR, CACHE_DIR, RESULTS_DIR, TEMP_DIR]:
-        dir_path.mkdir(parents=True, exist_ok=True)
-    
     # ========================================
     # CACHE SETTINGS
     # ========================================
@@ -103,9 +99,6 @@ class Config:
     # ========================================
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = BASE_DIR / os.getenv('LOG_FILE', 'logs/app.log')
-    
-    # Ensure log directory exists
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     
     # ========================================
     # SECURITY & RATE LIMITING
@@ -124,6 +117,14 @@ class Config:
     DEMO_CENTER_LAT = float(os.getenv('DEMO_CENTER_LAT', 12.9716))
     DEMO_CENTER_LON = float(os.getenv('DEMO_CENTER_LON', 77.5946))
     DEMO_RADIUS_KM = float(os.getenv('DEMO_RADIUS_KM', 10))
+    
+    def __init__(self):
+        # Create directories if they don't exist
+        for dir_path in [self.DATA_DIR, self.CACHE_DIR, self.RESULTS_DIR, self.TEMP_DIR]:
+            dir_path.mkdir(parents=True, exist_ok=True)
+            
+        # Ensure log directory exists
+        self.LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     
     @classmethod
     def validate(cls):

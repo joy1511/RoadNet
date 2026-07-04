@@ -206,7 +206,9 @@ class NodeAblationSimulator:
                 global_efficiency = nx.global_efficiency(largest_cc)
             else:
                 logger.info(f"Graph too large ({node_count} nodes), skipping O(V^2) efficiency metrics")
-                avg_shortest_path = 0.0
+                # Fix: Use -1.0 as sentinel for 'not computed', NOT 0.0
+                # 0.0 caused resilience_index to always return 0.0 for large graphs
+                avg_shortest_path = -1.0
                 global_efficiency = 0.0
         else:
             avg_shortest_path = -1.0
@@ -263,7 +265,7 @@ class NodeAblationSimulator:
         baseline_path = baseline.get('average_shortest_path', float('inf'))
         current_path = current.get('average_shortest_path', float('inf'))
         
-        if baseline_path != float('inf') and current_path != float('inf'):
+        if baseline_path != float('inf') and current_path != float('inf') and baseline_path != -1.0 and current_path != -1.0:
             impact['avg_path_increase'] = current_path - baseline_path
             if baseline_path != 0:
                 impact['avg_path_pct_increase'] = ((current_path - baseline_path) / baseline_path) * 100
@@ -283,7 +285,8 @@ class NodeAblationSimulator:
         """
         Compute Resilience Index (as per PDF specification)
         
-        Resilience Index = baseline_avg_shortest_path / perturbed_avg_shortest_path
+        For small graphs: baseline_avg_shortest_path / perturbed_avg_shortest_path
+        For large graphs: uses connectivity_ratio degradation as fallback
         
         Args:
             baseline: Baseline metrics
@@ -292,8 +295,18 @@ class NodeAblationSimulator:
         Returns:
             Resilience index (0-1, higher is better)
         """
-        baseline_path = baseline.get('average_shortest_path', float('inf'))
-        final_path = final.get('average_shortest_path', float('inf'))
+        baseline_path = baseline.get('average_shortest_path', -1.0)
+        final_path = final.get('average_shortest_path', -1.0)
+        
+        # Fix: -1.0 means "not computed" (large graph). Use connectivity_ratio as fallback.
+        if baseline_path == -1.0 or final_path == -1.0:
+            # Fallback: use connectivity ratio degradation
+            baseline_conn = baseline.get('connectivity_ratio', 1.0)
+            final_conn = final.get('connectivity_ratio', 0.0)
+            if baseline_conn <= 0:
+                return 0.0
+            resilience = final_conn / baseline_conn
+            return float(max(0.0, min(1.0, resilience)))
         
         if final_path == 0 or final_path == float('inf'):
             # Network completely disconnected

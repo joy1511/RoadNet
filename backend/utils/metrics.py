@@ -148,6 +148,38 @@ def compute_relaxed_iou(pred_mask, gt_mask, buffer_size=3):
     return float(relaxed_iou)
 
 
+def compute_occlusion_recall(pred_mask, gt_mask, occlusion_mask):
+    """
+    Compute Occlusion-Recall
+    How well the model detects roads specifically in occluded areas
+    
+    Args:
+        pred_mask: Predicted binary mask
+        gt_mask: Ground truth binary mask
+        occlusion_mask: Binary mask of where occlusions (clouds/trees) exist
+        
+    Returns:
+        Recall score restricted to occluded regions
+    """
+    pred = (pred_mask > 127).astype(np.uint8).flatten()
+    gt = (gt_mask > 127).astype(np.uint8).flatten()
+    occ = (occlusion_mask > 127).astype(np.uint8).flatten()
+    
+    # Filter arrays to only include occluded pixels
+    gt_occluded = gt * occ
+    pred_occluded = pred * occ
+    
+    tp_occluded = np.sum(pred_occluded * gt_occluded)
+    fn_occluded = np.sum((1 - pred_occluded) * gt_occluded)
+    
+    if (tp_occluded + fn_occluded) == 0:
+        return 1.0  # Perfect recall if there are no roads under occlusions
+        
+    recall = tp_occluded / (tp_occluded + fn_occluded)
+    return float(recall)
+
+
+
 def compute_connectivity_ratio(graph_before, graph_after):
     """
     Compute connectivity ratio after graph healing
@@ -271,6 +303,9 @@ def compute_all_metrics(pred_mask, gt_mask):
     # Relaxed IoU
     metrics['relaxed_iou_3px'] = compute_relaxed_iou(pred_mask, gt_mask, buffer_size=3)
     metrics['relaxed_iou_5px'] = compute_relaxed_iou(pred_mask, gt_mask, buffer_size=5)
+    
+    # If occlusion mask is provided, you would call:
+    # metrics['occlusion_recall'] = compute_occlusion_recall(pred_mask, gt_mask, occlusion_mask)
     
     return metrics
 

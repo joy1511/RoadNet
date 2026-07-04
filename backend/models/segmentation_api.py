@@ -64,7 +64,7 @@ class SegmentationAPI:
                 try:
                     model_file = hf_hub_download(
                         repo_id=config.HF_SEGMENTATION_MODEL,
-                        filename="pytorch_model.bin",
+                        filename="best_model.pth",
                         token=config.HUGGINGFACE_TOKEN
                     )
                     
@@ -92,9 +92,9 @@ class SegmentationAPI:
             raise
     
     def _create_model_architecture(self):
-        """Create model architecture (U-Net with ResNet34)"""
-        model = smp.Unet(
-            encoder_name="resnet34",
+        """Initialize base model architecture"""
+        model = smp.DeepLabV3Plus(
+            encoder_name="resnet50",
             encoder_weights="imagenet",
             in_channels=3,
             classes=1,
@@ -103,31 +103,12 @@ class SegmentationAPI:
         return model
     
     def _get_transform(self):
-        """Get preprocessing transforms"""
-        return A.Compose([
-            A.LongestMaxSize(max_size=config.MAX_IMAGE_SIZE),
-            A.PadIfNeeded(
-                min_height=512,
-                min_width=512,
-                border_mode=cv2.BORDER_CONSTANT,
-                value=0
-            ),
-            A.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            ),
-            ToTensorV2()
-        ])
+        """No longer used, handled manually in preprocess"""
+        pass
     
     def preprocess(self, image):
         """
         Preprocess image for model input
-        
-        Args:
-            image: PIL Image or numpy array or file path
-            
-        Returns:
-            Preprocessed tensor and original size
         """
         # Load image if path
         if isinstance(image, (str, Path)):
@@ -145,24 +126,45 @@ class SegmentationAPI:
             image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         elif image.shape[2] == 4:
             image = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+            
+        h, w = image.shape[:2]
+        max_dim = max(h, w)
         
-        # Apply transforms
-        transformed = self.transform(image=image)
-        image_tensor = transformed['image'].unsqueeze(0)  # Add batch dimension
+        # 1. Resize so longest edge is MAX_IMAGE_SIZE (only if downsizing)
+        if max_dim > config.MAX_IMAGE_SIZE:
+            scale = config.MAX_IMAGE_SIZE / max_dim
+            new_w, new_h = int(w * scale), int(h * scale)
+            image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            
+        intermediate_size = (image.shape[1], image.shape[0])
         
-        return image_tensor.to(self.device), original_size
+        # 2. Pad to make divisible by 32 and at least 512x512
+        h, w = image.shape[:2]
+        pad_h = (32 - h % 32) % 32
+        pad_w = (32 - w % 32) % 32
+        
+        if h + pad_h < 512:
+            pad_h += 512 - (h + pad_h)
+        if w + pad_w < 512:
+            pad_w += 512 - (w + pad_w)
+            
+        if pad_h > 0 or pad_w > 0:
+            image = cv2.copyMakeBorder(image, 0, pad_h, 0, pad_w, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+            
+        # 3. Normalize
+        image = image.astype(np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        image = (image - mean) / std
+        
+        # 4. To Tensor
+        image_tensor = torch.from_numpy(image.transpose(2, 0, 1)).unsqueeze(0).float()
+        
+        return image_tensor.to(self.device), {'original_size': original_size, 'intermediate_size': intermediate_size}
     
-    def postprocess(self, output, original_size, threshold=None):
+    def postprocess(self, output, sizes, threshold=None):
         """
         Postprocess model output
-        
-        Args:
-            output: Model output tensor
-            original_size: Original image size (width, height)
-            threshold: Binarization threshold
-            
-        Returns:
-            Binary mask as PIL Image
         """
         if threshold is None:
             threshold = self.threshold
@@ -175,9 +177,14 @@ class SegmentationAPI:
         mask = mask.squeeze().cpu().numpy()
         mask = (mask * 255).astype(np.uint8)
         
+        # Crop padding
+        intermediate_w, intermediate_h = sizes['intermediate_size']
+        mask = mask[:intermediate_h, :intermediate_w]
+        
         # Resize to original size
-        if mask.shape[:2] != original_size[::-1]:  # original_size is (W, H), mask is (H, W)
-            mask = cv2.resize(mask, original_size, interpolation=cv2.INTER_NEAREST)
+        original_w, original_h = sizes['original_size']
+        if (intermediate_w, intermediate_h) != (original_w, original_h):
+            mask = cv2.resize(mask, (original_w, original_h), interpolation=cv2.INTER_NEAREST)
         
         return Image.fromarray(mask)
     

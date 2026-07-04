@@ -204,8 +204,9 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({
               </PieChart>
             </ResponsiveContainer>
             {/* Center label */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-3xl font-bold text-white">{compositionData[0]?.value}%</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-3xl font-bold text-white">{centralityResult.graph.edges.length}</span>
+              <span className="text-xs text-slate-400 mt-1">Total Edges</span>
             </div>
           </div>
         </div>

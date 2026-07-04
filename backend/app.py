@@ -3,7 +3,7 @@ AstroRoute - Main Flask Application
 Production-level API server implementing all 4 friends' responsibilities
 """
 
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, after_this_request as flask_after_this_request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -13,6 +13,7 @@ import json
 import logging
 from pathlib import Path
 import traceback
+import networkx as nx
 
 # Import configuration
 from config import config
@@ -203,15 +204,30 @@ def segment_road():
             return_format=return_format
         )
         
-        # Clean up
-        temp_path.unlink()
-        
         # Return result
         if return_format == 'image':
             mask_path = config.TEMP_DIR / f"mask_{filename}"
             result['mask'].save(mask_path)
+            
+            # Fix: Delete temp files AFTER the response is sent, not before send_file
+            @flask_after_this_request
+            def cleanup(response):
+                try:
+                    if temp_path.exists():
+                        temp_path.unlink()
+                    if mask_path.exists():
+                        mask_path.unlink()
+                except Exception as ex:
+                    logger.warning(f"Temp file cleanup error: {ex}")
+                return response
+            
             return send_file(mask_path, mimetype='image/png')
         else:
+            # Clean up input temp file immediately for non-image responses
+            try:
+                temp_path.unlink()
+            except Exception:
+                pass
             return jsonify(result)
     
     except Exception as e:
@@ -578,7 +594,6 @@ def get_shortest_path():
             
         try:
             # Calculate shortest path using weight='length'
-            import networkx as nx
             path = nx.shortest_path(G, source=source, target=target, weight='length')
             distance = nx.shortest_path_length(G, source=source, target=target, weight='length')
             
@@ -586,10 +601,9 @@ def get_shortest_path():
                 'path': [str(node) for node in path],
                 'distance': float(distance)
             })
-        except Exception as e:
-            if type(e).__name__ == 'NetworkXNoPath':
-                return jsonify({'error': 'No path exists between the selected nodes'}), 404
-            raise e
+        except nx.NetworkXNoPath:
+            # Fix: use proper except clause instead of fragile string-based type check
+            return jsonify({'error': 'No path exists between the selected nodes'}), 404
             
     except Exception as e:
         logger.error(f"Shortest path error: {str(e)}\n{traceback.format_exc()}")

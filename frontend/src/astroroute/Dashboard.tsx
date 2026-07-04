@@ -19,6 +19,7 @@ import {
   Radar,
   Network,
   Satellite,
+  AlertCircle,
 } from 'lucide-react';
 import { InteractiveMapPanel } from './InteractiveMapPanel';
 import { ImageUpload } from './ImageUpload';
@@ -274,7 +275,7 @@ export const Dashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 fade-in">
           <div className="bg-red-50 border border-red-200 rounded-md p-4">
             <div className="flex items-center gap-2">
-              <span>Warning</span>
+              <AlertCircle size={18} className="text-red-600 flex-shrink-0" />
               <p className="text-red-800">{appState.error || error}</p>
             </div>
           </div>
@@ -390,10 +391,10 @@ export const Dashboard: React.FC = () => {
         {/* Analysis/Demo Mode Split View */}
         {showMap && (
           <div className="space-y-6 fade-in">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 min-h-[800px]">
+            <div className="flex flex-col gap-8">
               
-              {/* Left Panel: Satellite/Original View */}
-              <div className="bg-slate-900 rounded-xl overflow-hidden border border-slate-800 flex flex-col shadow-2xl relative group">
+              {/* Top Panel: Satellite/Original View */}
+              <div className="bg-slate-900 rounded-xl overflow-hidden border border-slate-800 flex flex-col shadow-2xl relative group min-h-[500px]">
                 <div className="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center z-10">
                   <h3 className="text-white font-medium flex items-center gap-2">
                     <MapPinned size={18} className="text-blue-400" />
@@ -447,7 +448,7 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right Panel: Interactive Network */}
+              {/* Bottom Panel: Interactive Network */}
               <div className="h-full relative shadow-2xl">
                  <InteractiveMapPanel
                     graph={graph}

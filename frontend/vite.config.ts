@@ -19,7 +19,7 @@ export default defineConfig({
     include: ['motion', 'motion/react', 'lucide-react', 'react', 'react-dom'],
   },
   server: {
-    port: 3000,
+    port: 5173,
     fs: {
       // Allow serving files from parent directory
       allow: ['..'],

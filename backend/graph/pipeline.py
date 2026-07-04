@@ -254,6 +254,9 @@ class GraphPipeline:
             for node, n1, n2 in nodes_to_remove:
                 # Check if edges still exist (might have been removed in this pass)
                 if node in G_simple and n1 in G_simple[node] and n2 in G_simple[node]:
+                    # Fix: skip self-loops (n1 == n2) which corrupt the graph
+                    if n1 == n2:
+                        continue
                     w1 = G_simple[node][n1].get('weight', 1)
                     w2 = G_simple[node][n2].get('weight', 1)
                     
