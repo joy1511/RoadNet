@@ -3,7 +3,7 @@
  * Handles all communication with Flask backend
  */
 
-const API_BASE = ''; // Use empty string to route through Vite proxy
+const API_BASE = import.meta.env.VITE_API_URL || ''; // Use env var for prod, empty string for Vite proxy
 
 // Types
 export interface Node {
